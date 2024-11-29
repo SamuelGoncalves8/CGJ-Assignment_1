@@ -61,12 +61,39 @@ typedef struct {
   GLfloat RGBA[4];
 } Vertex;
 
+
+class Shape {
+public: const Vertex Vertices[4];
+        const GLubyte Indices[3];
+	    GLuint VaoId, VboId[2];
+
+};
+
+
+
+const Vertex TriangleVertices[] = {
+	{{0.0f, 0.25f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+	{{0.25f, 0.75f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+	{{0.75f, 0.75f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}} };
+
+
+
+
 const Vertex Vertices[] = {
     {{0.25f, 0.25f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
     {{0.75f, 0.25f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
     {{0.50f, 0.75f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}};
 
+
+const Vertex ParallelogramVertices[] = {
+    {{0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+    {{0.3f, 0.0, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+    {{-0.1f, 0.15f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
+    {{-0.40f, 0.15f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}} };
+
 const GLubyte Indices[] = {0, 1, 2};
+
+const GLubyte ParallelogramIndices[] = { 0, 1, 2, 0, 2, 3 };
 
 void MyApp::createBufferObjects() {
   glGenVertexArrays(1, &VaoId);
@@ -76,18 +103,18 @@ void MyApp::createBufferObjects() {
 
     glBindBuffer(GL_ARRAY_BUFFER, VboId[0]);
     {
-      glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(ParallelogramVertices), ParallelogramVertices, GL_STATIC_DRAW);
       glEnableVertexAttribArray(POSITION);
       glVertexAttribPointer(POSITION, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                             reinterpret_cast<GLvoid *>(0));
       glEnableVertexAttribArray(COLOR);
       glVertexAttribPointer(
           COLOR, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-          reinterpret_cast<GLvoid *>(sizeof(Vertices[0].XYZW)));
+          reinterpret_cast<GLvoid *>(sizeof(ParallelogramVertices[0].XYZW)));
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VboId[1]);
     {
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices,
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ParallelogramIndices), ParallelogramIndices,
                    GL_STATIC_DRAW);
     }
   }
@@ -117,11 +144,11 @@ void MyApp::drawScene() {
   Shaders->bind();
 
   glUniformMatrix4fv(MatrixId, 1, GL_FALSE, glm::value_ptr(I));
-  glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE,
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE,
                  reinterpret_cast<GLvoid *>(0));
 
   glUniformMatrix4fv(MatrixId, 1, GL_FALSE, glm::value_ptr(M));
-  glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE,
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE,
                  reinterpret_cast<GLvoid *>(0));
 
   Shaders->unbind();
