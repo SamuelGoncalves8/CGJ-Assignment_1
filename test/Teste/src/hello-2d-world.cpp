@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Drawing two instances of a triangle in Clip Space.
-// A "Hello 2D World" of Modern OpenGL.
+// Drawing a Crab Tangram.
+// A "Group 9 Crab Tangram" of Modern OpenGL.
 //
 // Copyright (c) 2013-24 by Carlos Martinho
 //
