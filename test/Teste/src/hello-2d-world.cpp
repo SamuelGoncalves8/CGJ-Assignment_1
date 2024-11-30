@@ -70,11 +70,12 @@ public:
     Geometry() = default;
     std::vector<Vertex> vertices;
     std::vector<GLubyte> indices;
-    void setColor(const glm::vec3 rgba[4]) {
+    std::string geo;
+    void setColor(float r, float g, float b) {
         for (auto& vertex : vertices) {
-            vertex.RGBA[0] = rgba[0].r;
-            vertex.RGBA[1] = rgba[0].g;
-            vertex.RGBA[2] = rgba[0].b;
+            vertex.RGBA[0] = r;
+            vertex.RGBA[1] = g;
+            vertex.RGBA[2] = b;
             vertex.RGBA[3] = 1.0f;
         }
     }
@@ -85,11 +86,12 @@ class Triangle : public Geometry {
 public:
     Triangle() {
         vertices = {
-        {{0.0f, 0.0f, 0.0f, 1.0f}, {0.804f, 0.055f, 0.4f, 1.0f}},
-        {{0.25f, 0.0f, 0.0f, 1.0f}, {0.804f, 0.055f, 0.4f, 1.0f}},
-        {{0.25, 0.25f, 0.0f, 1.0f}, {0.804f, 0.055f, 0.4f, 1.0f}}
+        {{0.0f, 0.0f, 0.0f, 1.0f}, {0.933f, 0.380f, 0.2f, 1.0f}},
+        {{0.25f, 0.0f, 0.0f, 1.0f}, {0.933f, 0.380f, 0.2f, 1.0f}},
+        {{0.25, 0.25f, 0.0f, 1.0f}, {0.933f, 0.380f, 0.2f, 1.0f}}
         };
         indices = { 0, 1, 2 };
+        geo = "t";
     }
 };
 
@@ -97,13 +99,14 @@ class Square : public Geometry {
 public:
     Square() {
         vertices = {
-        {{0.0f,  0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {{0.25f,  0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {{0.25f, 0.25f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {{ 0.0f, 0.25f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}}
+        {{-0.125f,  -0.125f, 0.0f, 1.0f}, {0.0f, 0.8f, 0.0f, 1.0f}},
+        {{0.125f,  -0.125f, 0.0f, 1.0f}, {0.0f, 0.8f, 0.0f, 1.0f}},
+        {{0.125f, 0.125f, 0.0f, 1.0f}, {0.0f, 0.8f, 0.0f, 1.0f}},
+        {{ -0.125f, 0.125f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}}
         };
         indices = { 0, 1, 2,
                     0, 2, 3 };
+        geo = "s";
     }
 };
 
@@ -111,13 +114,14 @@ class Parallelogram : public Geometry {
 public:
     Parallelogram() {
         vertices = {
-        {{0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {{0.25f, 0.0, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {{0.0f, 0.25f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {{-0.25f, 0.25f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}}
+        {{0.0f, 0.0f, 0.0f, 1.0f}, {0.992f, 0.549f, 0.0f, 1.0f}},
+        {{0.25f, 0.0, 0.0f, 1.0f}, {0.992f, 0.549f, 0.0f, 1.0f}},
+        {{0.0f, 0.25f, 0.0f, 1.0f}, {0.992f, 0.549f, 0.0f, 1.0f}},
+        {{-0.25f, 0.25f, 0.0f, 1.0f}, {0.992f, 0.549f, 0.0f, 1.0f}}
         };
         indices = { 0, 1, 2,
                     0, 2, 3 };
+        geo = "p";
     }
 };
 
@@ -162,32 +166,63 @@ void MyApp::destroyBufferObjects() {
 
 void MyApp::createGeometry() {
     geometryList.clear();
-    geometryList.push_back(Triangle());       // Tiny triangle
-    geometryList.push_back(Triangle());       // 2nd Tiny triangle
-    geometryList.push_back(Triangle());       // Mid triangle
-    geometryList.push_back(Triangle());       // Big triangle
-    geometryList.push_back(Triangle());       // 2nd Big triangle
-    geometryList.push_back(Square());         // Square
-    geometryList.push_back(Parallelogram());  // Parallelogram
+
+    Triangle triangle1;
+    geometryList.push_back(triangle1);
+
+    Triangle triangle2;
+    triangle2.setColor(0.804f, 0.055f, 0.4f);
+    geometryList.push_back(triangle2);
+
+    Triangle triangle3;
+    triangle3.setColor(0.059f, 0.510f, 0.949f);
+    geometryList.push_back(triangle3);
+
+    Triangle triangle4;
+    triangle4.setColor(0.43f, 0.23f, 0.75f);
+    geometryList.push_back(triangle4);
+
+    Triangle triangle5;
+    triangle5.setColor(0.0f, 0.62f, 0.65f);
+    geometryList.push_back(triangle5);
+
+    Square square;
+    geometryList.push_back(square);
+
+    Parallelogram parallelogram;
+    geometryList.push_back(parallelogram);
+
 }
 
 ////////////////////////////////////////////////////////////////////////// SCENE
 
+int numTrian;
 const glm::mat4 I(1.0f);
-const glm::mat4 M = glm::translate(glm::vec3(-0.5f, -1.0f, 0.0f));
-const glm::mat4 N = glm::translate(glm::vec3(-0.5f, -0.75f, 0.0f));
+const glm::mat4 M = glm::translate(glm::vec3(-0.375f, -0.125f, 0.0f));
+const glm::mat4 T1 = glm::translate(glm::vec3(-0.625f,0.125, 0.0f));
+const glm::mat4 T2 = glm::translate(glm::vec3(0.125f, -0.125f, 0.0f))*glm::rotate(glm::radians(180.0f), glm::vec3(0.0f,0.0f,1.0f))*glm::scale(glm::vec3(2.0f,2.0f,2.0f));
+const glm::mat4 T3 = glm::translate(glm::vec3(-0.125f, -0.375f, 0.0f)) * glm::scale(glm::vec3(2.0f, 2.0f, 2.0f));
+const glm::mat4 T4 = glm::translate(glm::vec3(0.375f, -0.125f, 0.0f)) * glm::rotate(glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f))*glm::scale(glm::vec3(1.5f, 1.5f, 1.5f));
+const glm::mat4 T5 = glm::translate(glm::vec3(0.375f, -0.625f, 0.0f)) * glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+std::vector<glm::mat4> trans = { T1, T2, T3, T4, T5 };
 
 void MyApp::drawScene() {
+    numTrian = 0;
   // Drawing directly in clip space
     for (int i = 0; i < geometryList.size(); i++) {
         glBindVertexArray(VaoId[i]);
         Shaders->bind();
 
-        if (i == 0) {
+        if (geometryList[i].geo == "s") {
             glUniformMatrix4fv(MatrixId, 1, GL_FALSE, glm::value_ptr(I));
         }
-        else {
+        else if (geometryList[i].geo == "p") {
             glUniformMatrix4fv(MatrixId, 1, GL_FALSE, glm::value_ptr(M));
+        }
+        else {
+            glUniformMatrix4fv(MatrixId, 1, GL_FALSE, glm::value_ptr(trans[numTrian]));
+            numTrian++;
         }
         const std::vector<GLubyte>& indices = geometryList[i].indices;
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_BYTE,
@@ -220,7 +255,7 @@ int main(int argc, char *argv[]) {
   mgl::Engine &engine = mgl::Engine::getInstance();
   engine.setApp(new MyApp());
   engine.setOpenGL(4, 6);
-  engine.setWindow(600, 600, "Hello Modern 2D World", 0, 1);
+  engine.setWindow(600, 600, "Group 9 Crab Tangram", 0, 1);
   engine.init();
   engine.run();
   exit(EXIT_SUCCESS);
