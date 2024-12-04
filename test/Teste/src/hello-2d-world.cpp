@@ -17,7 +17,7 @@
 #include <vector>
 #include <iostream>
 
-#include "../mgl/mgl.hpp"
+#include "mgl/mgl.hpp"
 
 ////////////////////////////////////////////////////////////////////////// MYAPP
 

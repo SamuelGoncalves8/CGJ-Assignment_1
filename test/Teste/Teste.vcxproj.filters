@@ -15,8 +15,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\hello-2d-world.cpp">
+    <ClCompile Include="src\mesh-loader.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\mgl\mglCamera.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\mgl\mglShader.cpp">
+      <Filter>Resource Files</Filter>
     </ClCompile>
     <ClCompile Include="lib\mgl\mglApp.cpp">
       <Filter>Resource Files</Filter>
@@ -24,7 +30,7 @@
     <ClCompile Include="lib\mgl\mglError.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
-    <ClCompile Include="lib\mgl\mglShader.cpp">
+    <ClCompile Include="lib\mgl\mglMesh.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
   </ItemGroup>
