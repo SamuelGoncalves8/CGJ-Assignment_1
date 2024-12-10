@@ -342,21 +342,24 @@ void MyApp::scrollCallback(GLFWwindow* win, double xpos, double ypos) {
     radius -= ypos * zoomSpeed;
 
     // Clamp the radius to prevent the camera from getting too close or too far
-    radius = glm::clamp(radius, 4.0f, 10.0f);
+    radius = glm::clamp(radius, 0.0f, 6.0f);
 
     // Update the camera's position
-    glm::vec3 newCameraPos;
+    glm::vec3 CameraPos;
+    glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
 
     if (scene.cameraPos == 0) {
-
+        CameraPos = cam1Pos;
     }
     else {
-
+        CameraPos = cam2Pos;
     }
 
+    glm::vec3 direction = glm::normalize(target - CameraPos);
+    
+    glm::vec3 newCameraPos = CameraPos + direction * radius;
+
     scene.camera->setViewMatrix(glm::lookAt(newCameraPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-
-
 };
 
 /////////////////////////////////////////////////////////////////////////// MAIN
