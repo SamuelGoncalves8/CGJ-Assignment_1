@@ -34,6 +34,13 @@ private:
 
 public:
 
+    glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    void setColor(glm::vec3 newColor) {
+        color = newColor;
+    }
+
+
     void setMesh(mgl::Mesh* mesh) {
         this->mesh = mesh;
     }
@@ -65,6 +72,7 @@ public:
             
             Shader->bind();  // Bind the shader program
             glUniformMatrix4fv(ModelMatrixId, 1, GL_FALSE, glm::value_ptr(worldMatrix));
+            glUniform3fv(Shader->Uniforms["meshColor"].index, 1, glm::value_ptr(color));
             // Draw the mesh
             mesh->draw();
             Shader->unbind();  // Unbind the shader program
@@ -100,6 +108,7 @@ public:
                 Shader->addAttribute(mgl::TANGENT_ATTRIBUTE, mgl::Mesh::TANGENT);
             }
 
+            Shader->addUniform("meshColor");
             Shader->addUniform(mgl::MODEL_MATRIX);
             Shader->addUniformBlock(mgl::CAMERA_BLOCK, UBO_BP);
             Shader->create();
@@ -113,14 +122,15 @@ public:
 class SceneGraph {
 public:
     SceneNode* root = nullptr;
-    std::vector<mgl::Camera*> cameras;
-    uint8_t currentCamera = 0;
+    mgl::Camera* camera;
+    uint8_t cameraPos = 0;
+    bool orto = true;
 
     void setRootNode(SceneNode* rootNode) {
         root = rootNode;
     }
-    void addCamera(mgl::Camera* camera) {
-        cameras.push_back(camera);
+    void addCamera(mgl::Camera* Camera) {
+        this->camera = Camera;
     }
     void draw() {
         if (root != nullptr) {
@@ -134,11 +144,15 @@ public:
 
 class MyApp : public mgl::App {
 public:
+    void keyCallback(GLFWwindow* win, int key, int scancode, int action, int mods) override;
     void initCallback(GLFWwindow* win) override;
     void displayCallback(GLFWwindow* win, double elapsed) override;
     void windowSizeCallback(GLFWwindow* win, int width, int height) override;
+    void scrollCallback(GLFWwindow* win, double xpos, double ypos) override;
 
 private:
+    float radius = 5.0f;
+    float yaw = 0.0f, pitch = 0.0f;
     mgl::ShaderProgram* Shaders = nullptr;
     std::vector<mgl::Camera*> Cameras;
     mgl::Mesh* Mesh = nullptr;
@@ -185,6 +199,14 @@ void MyApp::createMeshes() {
     Para->setMesh(tangramMeshes[1]);
     Square->setMesh(tangramMeshes[0]);
 
+    Triangle1->setColor(glm::vec3(1.0f, 0.0f, 0.0f)); // Red
+    Triangle2->setColor(glm::vec3(0.0f, 1.0f, 0.0f)); // Green
+    Triangle3->setColor(glm::vec3(0.0f, 0.0f, 1.0f)); // Blue
+    Triangle4->setColor(glm::vec3(1.0f, 1.0f, 0.0f)); // Yellow
+    Triangle5->setColor(glm::vec3(1.0f, 0.5f, 0.0f)); // Orange
+    Para->setColor(glm::vec3(0.5f, 0.0f, 0.5f)); // Purple
+    Square->setColor(glm::vec3(0.0f, 1.0f, 1.0f)); // Cyan
+
     tangram.addChild(Triangle1);
     tangram.addChild(Triangle2);
     tangram.addChild(Triangle3);
@@ -204,13 +226,16 @@ void MyApp::createShaderPrograms() {
 ///////////////////////////////////////////////////////////////////////// CAMERA
 
 // Eye(5,5,5) Center(0,0,0) Up(0,1,0)
+glm::vec3 cam1Pos = glm::vec3(5.0f, 5.0f, 5.0f);
+glm::vec3 cam2Pos = glm::vec3(-5.0f, -5.0f, -5.0f);
+
 const glm::mat4 ViewMatrix1 =
-glm::lookAt(glm::vec3(5.0f, 5.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+glm::lookAt(cam1Pos, glm::vec3(0.0f, 0.0f, 0.0f),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
 // Eye(-5,-5,-5) Center(0,0,0) Up(0,1,0)
 const glm::mat4 ViewMatrix2 =
-glm::lookAt(glm::vec3(-5.0f, -5.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+glm::lookAt(cam2Pos, glm::vec3(0.0f, 0.0f, 0.0f),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
 // Orthographic LeftRight(-2,2) BottomTop(-2,2) NearFar(1,10)
@@ -222,16 +247,10 @@ const glm::mat4 ProjectionMatrix2 =
 glm::perspective(glm::radians(30.0f), 640.0f / 480.0f, 1.0f, 10.0f);
 
 void MyApp::createCameras() {
-
-    mgl::Camera *Camera1 = new mgl::Camera(0);
-    Camera1->setViewMatrix(ViewMatrix2);
-    Camera1->setProjectionMatrix(ProjectionMatrix1);
-    Cameras.push_back(Camera1);
-
-    mgl::Camera* Camera2 = new mgl::Camera(0);
-    Camera2->setViewMatrix(ViewMatrix2);
-    Camera2->setProjectionMatrix(ProjectionMatrix2);
-    Cameras.push_back(Camera2);
+    mgl::Camera* Camera = new mgl::Camera(0);
+    Camera->setViewMatrix(ViewMatrix1);
+    Camera->setProjectionMatrix(ProjectionMatrix1);
+    scene.addCamera(Camera);
 }
 
 /////////////////////////////////////////////////////////////////////////// DRAW
@@ -246,7 +265,7 @@ glm::vec3 Triangle2Translate = glm::vec3(0.0f, -0.25f, -0.25f);
 glm::vec3 TriangleMidScale = glm::vec3(1.0f, 1.5f, 1.5f);
 glm::vec3 TriangleMidTranslate = glm::vec3(0.0f, 0.25f, -0.75f);
 //Tiny Triangles
-glm::vec3 Triangle4Translate = glm::vec3(0.0f, 0.50f, 1.01f);
+glm::vec3 Triangle4Translate = glm::vec3(0.0f, 0.50f, 1.0f);
 glm::vec3 Triangle5Translate = glm::vec3(0.0f, -1.0f, -0.50f);
 //Para
 glm::vec3 ParaTranslate = glm::vec3(0.0f, 0.0f, 0.70f);
@@ -275,13 +294,37 @@ void MyApp::drawScene() {
 
 ////////////////////////////////////////////////////////////////////// CALLBACKS
 
+void MyApp::keyCallback(GLFWwindow* win, int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS) {
+        if (key == GLFW_KEY_C) {
+            if (scene.cameraPos == 0) {
+                scene.camera->setViewMatrix(ViewMatrix2);
+                scene.cameraPos = 1;
+            }
+            else {
+                scene.camera->setViewMatrix(ViewMatrix1);
+                scene.cameraPos = 0;
+            }
+        }
+        if (key == GLFW_KEY_P) {
+            if (scene.orto) {
+                scene.camera->setProjectionMatrix(ProjectionMatrix2);
+                scene.orto = false;
+            }
+            else {
+                scene.camera->setProjectionMatrix(ProjectionMatrix1);
+                scene.orto = true;
+            }
+        }
+    }
+}
+
 void MyApp::initCallback(GLFWwindow* win) {
     scene.setRootNode(&tangram);
 
     createMeshes();
     createShaderPrograms();  // after mesh;
     createCameras();
-
 }
 
 void MyApp::windowSizeCallback(GLFWwindow* win, int winx, int winy) {
@@ -289,7 +332,32 @@ void MyApp::windowSizeCallback(GLFWwindow* win, int winx, int winy) {
     // change projection matrices to maintain aspect ratio
 }
 
-void MyApp::displayCallback(GLFWwindow* win, double elapsed) { drawScene(); }
+void MyApp::displayCallback(GLFWwindow* win, double elapsed) { 
+    drawScene();
+}
+
+void MyApp::scrollCallback(GLFWwindow* win, double xpos, double ypos) {
+
+    const float zoomSpeed = 1.0f;
+    radius -= ypos * zoomSpeed;
+
+    // Clamp the radius to prevent the camera from getting too close or too far
+    radius = glm::clamp(radius, 4.0f, 10.0f);
+
+    // Update the camera's position
+    glm::vec3 newCameraPos;
+
+    if (scene.cameraPos == 0) {
+
+    }
+    else {
+
+    }
+
+    scene.camera->setViewMatrix(glm::lookAt(newCameraPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+
+
+};
 
 /////////////////////////////////////////////////////////////////////////// MAIN
 
