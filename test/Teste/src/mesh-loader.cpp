@@ -67,8 +67,15 @@ public:
     void draw() {
         if (Shader != nullptr) {
 
-            glm::mat4 worldMatrix = TranslateMatrix * RotateMatrix * ScaleMatrix;
+            glm::mat4 localMatrix = TranslateMatrix * RotateMatrix * ScaleMatrix;
+            glm::mat4 worldMatrix;
 
+            if (parent != nullptr) {
+                worldMatrix = parent->TranslateMatrix * parent->RotateMatrix * parent->ScaleMatrix * localMatrix;
+            }
+            else {
+                worldMatrix = localMatrix;
+            }
             
             Shader->bind();  // Bind the shader program
             glUniformMatrix4fv(ModelMatrixId, 1, GL_FALSE, glm::value_ptr(worldMatrix));
@@ -145,6 +152,8 @@ public:
 class MyApp : public mgl::App {
 public:
     void keyCallback(GLFWwindow* win, int key, int scancode, int action, int mods) override;
+    void mouseButtonCallback(GLFWwindow* win, int button, int action, int mods) override;
+    void cursorCallback(GLFWwindow* win, double xpos, double ypos) override;
     void initCallback(GLFWwindow* win) override;
     void displayCallback(GLFWwindow* win, double elapsed) override;
     void windowSizeCallback(GLFWwindow* win, int width, int height) override;
@@ -152,7 +161,9 @@ public:
 
 private:
     float radius = 5.0f;
-    float yaw = 0.0f, pitch = 0.0f;
+    bool pressing = false;
+    double cursor_x_pos;
+    double cursor_y_pos;
     mgl::ShaderProgram* Shaders = nullptr;
     std::vector<mgl::Camera*> Cameras;
     mgl::Mesh* Mesh = nullptr;
@@ -318,6 +329,55 @@ void MyApp::keyCallback(GLFWwindow* win, int key, int scancode, int action, int 
         }
     }
 }
+
+void MyApp::mouseButtonCallback(GLFWwindow* win, int button, int action, int mods) {
+    if (action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT) {
+        glfwGetCursorPos(win, &cursor_x_pos, &cursor_y_pos);
+        pressing = true;
+    }
+    else if (action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_LEFT){
+        glfwGetCursorPos(win, &cursor_x_pos, &cursor_y_pos);
+        pressing = false;
+    }
+}
+
+void MyApp::cursorCallback(GLFWwindow* win, double xpos, double ypos) {
+    float rotationSpeed = 0.2f;
+    if(pressing) {
+        double delta_x = xpos - cursor_x_pos;
+        double delta_y = ypos - cursor_y_pos;
+
+        cursor_x_pos = xpos;
+        cursor_y_pos = ypos;
+
+        glm::vec3 CameraPos;
+        if (scene.cameraPos == 0) {
+            CameraPos = cam1Pos;
+        }
+        else {
+            CameraPos = cam2Pos;
+        }
+        glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
+
+        // Calculate new angles based on cursor movement
+        float horizontalAngle = glm::radians(static_cast<float>(delta_x * rotationSpeed));
+        float verticalAngle = glm::radians(static_cast<float>(-delta_y * rotationSpeed));
+
+
+        glm::mat4 rotationMatrix = glm::rotate(horizontalAngle, glm::vec3(0.0f, 1.0f, 0.0f)) *
+            glm::rotate(verticalAngle, glm::vec3(1.0f, 0.0f, 0.0f));
+
+        // Compute new camera position by rotating around the target
+        glm::vec3 direction = glm::normalize(CameraPos - target);
+        glm::vec4 rotatedDirection = rotationMatrix * glm::vec4(direction, 0.0f);
+        glm::vec3 newCameraPos = target + glm::vec3(rotatedDirection) * radius;
+
+        // Update the camera's view matrix
+        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+    }
+}
+
+
 
 void MyApp::initCallback(GLFWwindow* win) {
     scene.setRootNode(&tangram);
