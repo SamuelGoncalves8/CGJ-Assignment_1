@@ -12,6 +12,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 #include "mgl/mgl.hpp"
 
@@ -25,8 +26,10 @@ private:
     const GLuint UBO_BP = 0;
     mgl::Mesh* mesh;
     std::vector<SceneNode*> children;
-    glm::mat4 TranslateMatrix = glm::mat4(1.0f);
-    glm::mat4 RotateMatrix = glm::mat4(1.0f);
+    glm::mat4 TranslateMatrixCube = glm::mat4(1.0f);
+    glm::mat4 TranslateMatrixCrab = glm::mat4(1.0f);
+    glm::mat4 RotateMatrixCube = glm::mat4(1.0f);
+    glm::mat4 RotateMatrixCrab = glm::mat4(1.0f);
     glm::mat4 ScaleMatrix = glm::mat4(1.0f);
     mgl::ShaderProgram* Shader = nullptr;
     SceneNode* parent = nullptr;
@@ -39,7 +42,6 @@ public:
     void setColor(glm::vec3 newColor) {
         color = newColor;
     }
-
 
     void setMesh(mgl::Mesh* mesh) {
         this->mesh = mesh;
@@ -54,28 +56,28 @@ public:
         return children[index];
     }
 
-    void translate(glm::vec3 vector) {
-        TranslateMatrix = glm::translate(glm::mat4(1.0f), vector);
+    void translateCrab(glm::vec3 vector) {
+        TranslateMatrixCrab = glm::translate(TranslateMatrixCrab, vector);
     };
-    void rotate(float angle, glm::vec3 axis) {
-        RotateMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(angle), axis);
+    void rotateCrab(float angle, glm::vec3 axis) {
+        RotateMatrixCrab = glm::rotate(RotateMatrixCrab, glm::radians(angle), axis);
+    };
+
+    void translateCube(glm::vec3 vector) {
+        TranslateMatrixCube = glm::translate(TranslateMatrixCube, vector);
+    };
+    void rotateCube(float angle, glm::vec3 axis) {
+        RotateMatrixCube = glm::rotate(RotateMatrixCube, glm::radians(angle), axis);
     };
     void scale(glm::vec3 vector) {
-        ScaleMatrix = glm::scale(glm::mat4(1.0f), vector);
+        ScaleMatrix = glm::scale(ScaleMatrix, vector);
     };
 
-    void draw() {
+    void draw(float progress) {
         if (Shader != nullptr) {
-
-            glm::mat4 localMatrix = TranslateMatrix * RotateMatrix * ScaleMatrix;
-            glm::mat4 worldMatrix;
-
-            if (parent != nullptr) {
-                worldMatrix = parent->TranslateMatrix * parent->RotateMatrix * parent->ScaleMatrix * localMatrix;
-            }
-            else {
-                worldMatrix = localMatrix;
-            }
+            glm::mat4 MatrixCrab = TranslateMatrixCrab * RotateMatrixCrab * ScaleMatrix;
+            glm::mat4 MatrixCube = TranslateMatrixCube * RotateMatrixCube * ScaleMatrix;
+            glm::mat4 worldMatrix = interpolateMatrix(MatrixCrab, MatrixCube, progress);
             
             Shader->bind();  // Bind the shader program
             glUniformMatrix4fv(ModelMatrixId, 1, GL_FALSE, glm::value_ptr(worldMatrix));
@@ -88,9 +90,14 @@ public:
         if (children.size() != 0) {
             // Recursively draw all children nodes
             for (SceneNode* child : children) {
-                child->draw();
+                child->draw(progress);
             }
         }
+        TranslateMatrixCrab = glm::mat4(1.0f);
+        TranslateMatrixCube = glm::mat4(1.0f);
+        RotateMatrixCrab = glm::mat4(1.0f);
+        RotateMatrixCube = glm::mat4(1.0f);
+        ScaleMatrix = glm::mat4(1.0f);
     }
 
     void createShaderProgram() {
@@ -124,6 +131,30 @@ public:
 
     }
 
+    glm::mat4 interpolateMatrix(const glm::mat4& CrabMat, const glm::mat4& CubeMat, float progress) {
+        // Decompose the start and end matrices into translation, rotation, and scale
+        glm::vec3 startTranslation, endTranslation, startScale, endScale, startSkew, endSkew;
+        glm::vec4 startPerspective, endPerspective;
+        glm::quat startRotation, endRotation;
+
+        // Decompose both matrices
+        glm::decompose(CrabMat, startScale, startRotation, startTranslation, startSkew, endPerspective);
+        glm::decompose(CubeMat, endScale, endRotation, endTranslation, endSkew, startPerspective);
+
+        // Interpolate translation, rotation, and scale
+        glm::vec3 interpolatedTranslation = glm::mix(startTranslation, endTranslation, progress);
+        glm::quat interpolatedRotation = glm::slerp(startRotation, endRotation, progress);
+        glm::vec3 interpolatedScale = glm::mix(startScale, endScale, progress);
+
+        // Reconstruct the final matrix with the interpolated components
+        glm::mat4 translationMat = glm::translate(glm::mat4(1.0f), interpolatedTranslation);
+        glm::mat4 rotationMat = glm::mat4_cast(interpolatedRotation);
+        glm::mat4 scaleMat = glm::scale(glm::mat4(1.0f), interpolatedScale);
+
+        return translationMat * rotationMat * scaleMat;
+    }
+
+
 };
 
 class SceneGraph {
@@ -131,7 +162,9 @@ public:
     SceneNode* root = nullptr;
     mgl::Camera* camera;
     uint8_t cameraPos = 0;
-    bool orto = true;
+    uint8_t orto = 0;
+    uint8_t left = 0;
+    uint8_t right = 0;
 
     void setRootNode(SceneNode* rootNode) {
         root = rootNode;
@@ -139,9 +172,9 @@ public:
     void addCamera(mgl::Camera* Camera) {
         this->camera = Camera;
     }
-    void draw() {
+    void draw(float progress) {
         if (root != nullptr) {
-            root->draw();
+            root->draw(progress);
         }
     }
     void createShaderProgram() {
@@ -158,9 +191,9 @@ public:
     void displayCallback(GLFWwindow* win, double elapsed) override;
     void windowSizeCallback(GLFWwindow* win, int width, int height) override;
     void scrollCallback(GLFWwindow* win, double xpos, double ypos) override;
+    float progress = 0.0f;
 
 private:
-    float radius = 5.0f;
     bool pressing = false;
     double cursor_x_pos;
     double cursor_y_pos;
@@ -237,16 +270,13 @@ void MyApp::createShaderPrograms() {
 ///////////////////////////////////////////////////////////////////////// CAMERA
 
 // Eye(5,5,5) Center(0,0,0) Up(0,1,0)
-glm::vec3 cam1Pos = glm::vec3(5.0f, 5.0f, 5.0f);
-glm::vec3 cam2Pos = glm::vec3(-5.0f, -5.0f, -5.0f);
-
-const glm::mat4 ViewMatrix1 =
-glm::lookAt(cam1Pos, glm::vec3(0.0f, 0.0f, 0.0f),
+glm::mat4 ViewMatrix1 =
+glm::lookAt(glm::vec3(5.0f, 5.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
 // Eye(-5,-5,-5) Center(0,0,0) Up(0,1,0)
-const glm::mat4 ViewMatrix2 =
-glm::lookAt(cam2Pos, glm::vec3(0.0f, 0.0f, 0.0f),
+glm::mat4 ViewMatrix2 =
+glm::lookAt(glm::vec3(-5.0f, -5.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
 // Orthographic LeftRight(-2,2) BottomTop(-2,2) NearFar(1,10)
@@ -267,13 +297,18 @@ void MyApp::createCameras() {
 /////////////////////////////////////////////////////////////////////////// DRAW
 
 glm::mat4 ModelMatrix(1.0f);
-glm::vec3 RotateAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-//Big Triangles
+glm::vec3 RotateAxisX = glm::vec3(1.0f, 0.0f, 0.0f);
+glm::vec3 RotateAxisY = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 RotateAxisZ = glm::vec3(0.0f, 0.0f, 1.0f);
 glm::vec3 TriangleBigScale = glm::vec3(1.0f, 2.0f, 2.0f);
+glm::vec3 TriangleMidScale = glm::vec3(1.0f, glm::sqrt(2), glm::sqrt(2));
+
+/////////////////////////////////////////////////////////////////////////// CRAB
+
+//Big Triangles
 glm::vec3 Triangle1Translate = glm::vec3(0.0f, -0.75f, 0.25f);
 glm::vec3 Triangle2Translate = glm::vec3(0.0f, -0.25f, -0.25f);
 //Mid Triangle
-glm::vec3 TriangleMidScale = glm::vec3(1.0f, 1.5f, 1.5f);
 glm::vec3 TriangleMidTranslate = glm::vec3(0.0f, 0.25f, -0.75f);
 //Tiny Triangles
 glm::vec3 Triangle4Translate = glm::vec3(0.0f, 0.50f, 1.0f);
@@ -281,26 +316,79 @@ glm::vec3 Triangle5Translate = glm::vec3(0.0f, -1.0f, -0.50f);
 //Para
 glm::vec3 ParaTranslate = glm::vec3(0.0f, 0.0f, 0.70f);
 
+////////////////////////////////////////////////////////////////////////// Tangram Cube
+
+//Big Triangles
+glm::vec3 Triangle1Translate2 = glm::vec3(-1.05f, 0.0f, 0.0f);
+glm::vec3 Triangle2Translate2 = glm::vec3(-0.35f, 0.0f, -0.71f);
+//Mid Triangles
+glm::vec3 TriangleMidTranslate2 = glm::vec3(0.0f,0.0f,0.35f);
+//Tiny Triangles
+glm::vec3 Triangle4Translate2 = glm::vec3(0.355f, 0.0f, -0.355f);
+glm::vec3 Triangle5Translate2 = glm::vec3(-0.35f, 0.0f, 0.35f);
+//Para
+glm::vec3 ParaTranslate2 = glm::vec3(-0.485f, 0.0f, 0.49f);
+
 void MyApp::drawScene() {
     //Big Triangles
-    tangram.getChild(0)->rotate(-90.0f, RotateAxis);
-    tangram.getChild(1)->rotate(90.0f, RotateAxis);
-    tangram.getChild(0)->translate(Triangle1Translate);
-    tangram.getChild(1)->translate(Triangle2Translate);
     tangram.getChild(0)->scale(TriangleBigScale);
     tangram.getChild(1)->scale(TriangleBigScale);
-    //Mid Triangle
-    tangram.getChild(2)->rotate(135.0f, RotateAxis);
-    tangram.getChild(2)->translate(TriangleMidTranslate);
+    //Crab
+    tangram.getChild(0)->rotateCrab(-90.0f, RotateAxisX);
+    tangram.getChild(1)->rotateCrab(90.0f, RotateAxisX);
+    tangram.getChild(0)->translateCrab(Triangle1Translate);
+    tangram.getChild(1)->translateCrab(Triangle2Translate);
+    //Cube
+    tangram.getChild(0)->rotateCube(45.0f, RotateAxisY);
+    tangram.getChild(0)->rotateCube(90.0f, RotateAxisZ);
+    tangram.getChild(1)->rotateCube(-45.0f, RotateAxisY);
+    tangram.getChild(1)->rotateCube(90.0f, RotateAxisZ);
+    tangram.getChild(0)->translateCube(Triangle1Translate2);
+    tangram.getChild(1)->translateCube(Triangle2Translate2);
+    ////Mid Triangle
     tangram.getChild(2)->scale(TriangleMidScale);
-    //Tiny Triangles
-    tangram.getChild(3)->rotate(90.0f, RotateAxis);
-    tangram.getChild(3)->translate(Triangle4Translate);
-    tangram.getChild(4)->rotate(180.0f, RotateAxis);
-    tangram.getChild(4)->translate(Triangle5Translate);
-    //Para
-    tangram.getChild(5)->translate(ParaTranslate);
-    scene.draw();
+    //Crab
+    tangram.getChild(2)->rotateCrab(135.0f, RotateAxisX);
+    tangram.getChild(2)->translateCrab(TriangleMidTranslate);
+    //Cube
+    tangram.getChild(2)->rotateCube(90.0f, RotateAxisZ);
+    tangram.getChild(2)->translateCube(TriangleMidTranslate2);
+    ////Tiny Triangles
+    // Crab
+    tangram.getChild(3)->rotateCrab(90.0f, RotateAxisX);
+    tangram.getChild(3)->translateCrab(Triangle4Translate);
+    tangram.getChild(4)->rotateCrab(180.0f, RotateAxisX);
+    tangram.getChild(4)->translateCrab(Triangle5Translate);
+    // Cube
+    tangram.getChild(3)->rotateCube(-135.0f, RotateAxisY);
+    tangram.getChild(3)->rotateCube(90.0f, RotateAxisZ);
+    tangram.getChild(3)->translateCube(Triangle4Translate2);
+    tangram.getChild(4)->rotateCube(135.0f, RotateAxisY);
+    tangram.getChild(4)->rotateCube(90.0f, RotateAxisZ);
+    tangram.getChild(4)->translateCube(Triangle5Translate2);
+    ////Para
+    //Crab
+    tangram.getChild(5)->translateCrab(ParaTranslate);
+    //Cube
+    tangram.getChild(5)->rotateCube(-45.0f, RotateAxisY);
+    tangram.getChild(5)->rotateCube(90.0f, RotateAxisZ);
+    tangram.getChild(5)->translateCube(ParaTranslate2);
+    //Square
+    tangram.getChild(6)->rotateCube(45.0f, RotateAxisY);
+
+    if (scene.left) {
+        progress -= 0.01f;
+    } else if (scene.right) {
+        progress += 0.01f;
+    }
+
+    if (progress < 0.0f) {
+        progress = 0.0f;
+    } else if (progress > 1.0f) {
+        progress = 1.0f;
+    }
+
+    scene.draw(progress);
 }
 
 ////////////////////////////////////////////////////////////////////// CALLBACKS
@@ -318,14 +406,32 @@ void MyApp::keyCallback(GLFWwindow* win, int key, int scancode, int action, int 
             }
         }
         if (key == GLFW_KEY_P) {
-            if (scene.orto) {
+            if (scene.orto == 1) {
                 scene.camera->setProjectionMatrix(ProjectionMatrix2);
-                scene.orto = false;
+                scene.orto = 0;
             }
             else {
                 scene.camera->setProjectionMatrix(ProjectionMatrix1);
-                scene.orto = true;
+                scene.orto = 1;
             }
+        }
+        if (key == GLFW_KEY_LEFT) {
+            if (!scene.right) {
+                scene.left = 1;
+            }
+        }
+        if (key == GLFW_KEY_RIGHT) {
+            if (!scene.left) {
+                scene.right = 1;
+            }
+        }
+    }
+    if (action == GLFW_RELEASE) {
+        if (key == GLFW_KEY_LEFT) {
+            scene.left = 0;
+        }
+        if (key == GLFW_KEY_RIGHT) {
+            scene.right = 0;
         }
     }
 }
@@ -342,42 +448,45 @@ void MyApp::mouseButtonCallback(GLFWwindow* win, int button, int action, int mod
 }
 
 void MyApp::cursorCallback(GLFWwindow* win, double xpos, double ypos) {
-    float rotationSpeed = 0.2f;
-    if(pressing) {
+    float rotationSpeed = 0.5f; // Adjust for sensitivity
+
+    if (pressing) {
         double delta_x = xpos - cursor_x_pos;
         double delta_y = ypos - cursor_y_pos;
 
         cursor_x_pos = xpos;
         cursor_y_pos = ypos;
 
-        glm::vec3 CameraPos;
-        if (scene.cameraPos == 0) {
-            CameraPos = cam1Pos;
-        }
-        else {
-            CameraPos = cam2Pos;
-        }
-        glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
-
-        // Calculate new angles based on cursor movement
+        // Calculate rotation angles
         float horizontalAngle = glm::radians(static_cast<float>(delta_x * rotationSpeed));
         float verticalAngle = glm::radians(static_cast<float>(-delta_y * rotationSpeed));
 
+        glm::mat4 ViewMatrix = scene.camera->getViewMatrix();
+        glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
 
-        glm::mat4 rotationMatrix = glm::rotate(horizontalAngle, glm::vec3(0.0f, 1.0f, 0.0f)) *
-            glm::rotate(verticalAngle, glm::vec3(1.0f, 0.0f, 0.0f));
+        //Update Camera Position
+        glm::vec3 CameraPos = glm::vec3(glm::inverse(ViewMatrix)[3]);
 
-        // Compute new camera position by rotating around the target
         glm::vec3 direction = glm::normalize(CameraPos - target);
-        glm::vec4 rotatedDirection = rotationMatrix * glm::vec4(direction, 0.0f);
-        glm::vec3 newCameraPos = target + glm::vec3(rotatedDirection) * radius;
 
-        // Update the camera's view matrix
-        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+        // Compute rotation quaternions
+        glm::quat horizontalQuat = glm::angleAxis(horizontalAngle, glm::vec3(0.0f, 1.0f, 0.0f)); // Around Y-axis
+        glm::vec3 rightAxis = glm::normalize(glm::cross(direction, glm::vec3(0.0f, 1.0f, 0.0f))); // Perpendicular to Y and direction
+        glm::quat verticalQuat = glm::angleAxis(verticalAngle, rightAxis); // Around the right axis
+
+        // Combine the rotations
+        glm::quat combinedQuat = horizontalQuat * verticalQuat;
+
+        if (ViewMatrix == ViewMatrix1) {
+            scene.camera->setViewMatrix(glm::lookAt(CameraPos * combinedQuat, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+            ViewMatrix1 = scene.camera->getViewMatrix();
+        }
+        else {
+            scene.camera->setViewMatrix(glm::lookAt(CameraPos * combinedQuat, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+            ViewMatrix2 = scene.camera->getViewMatrix();
+        }
     }
 }
-
-
 
 void MyApp::initCallback(GLFWwindow* win) {
     scene.setRootNode(&tangram);
@@ -397,30 +506,28 @@ void MyApp::displayCallback(GLFWwindow* win, double elapsed) {
 }
 
 void MyApp::scrollCallback(GLFWwindow* win, double xpos, double ypos) {
-
-    const float zoomSpeed = 1.0f;
-    radius -= ypos * zoomSpeed;
-
-    // Clamp the radius to prevent the camera from getting too close or too far
-    radius = glm::clamp(radius, 0.0f, 6.0f);
-
-    // Update the camera's position
-    glm::vec3 CameraPos;
+    const float zoomSpeed = 0.5f;
+    glm::mat4 ViewMatrix = scene.camera->getViewMatrix();
     glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
 
-    if (scene.cameraPos == 0) {
-        CameraPos = cam1Pos;
-    }
-    else {
-        CameraPos = cam2Pos;
-    }
+
+    // Update the camera's position
+    glm::vec3 CameraPos = glm::vec3(glm::inverse(ViewMatrix)[3]);
 
     glm::vec3 direction = glm::normalize(target - CameraPos);
-    
-    glm::vec3 newCameraPos = CameraPos + direction * radius;
 
-    scene.camera->setViewMatrix(glm::lookAt(newCameraPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-};
+    glm::vec3 newCameraPos = CameraPos + direction * zoomSpeed * static_cast<float>(ypos);
+
+    if (ViewMatrix == ViewMatrix1) {
+        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+        ViewMatrix1 = scene.camera->getViewMatrix();
+    }
+    else {
+        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+        ViewMatrix2 = scene.camera->getViewMatrix();
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////////////// MAIN
 
