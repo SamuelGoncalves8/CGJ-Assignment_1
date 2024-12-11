@@ -498,7 +498,26 @@ void MyApp::initCallback(GLFWwindow* win) {
 
 void MyApp::windowSizeCallback(GLFWwindow* win, int winx, int winy) {
     glViewport(0, 0, winx, winy);
-    // change projection matrices to maintain aspect ratio
+
+    float aspectRatio = static_cast<float>(winx) / static_cast<float>(winy);
+
+    glm::mat4 projectionMatrix;
+    if (scene.orto) {
+        projectionMatrix = glm::ortho(
+            -2.0f * aspectRatio, 2.0f * aspectRatio, // Adjust left and right
+            -2.0f, 2.0f,                             // Bottom and top remain constant
+            1.0f, 10.0f                              // Near and far planes
+        );
+    }
+    else {
+        projectionMatrix = glm::perspective(
+            glm::radians(30.0f), // Field of view remains constant
+            aspectRatio,         // Adjust aspect ratio
+            1.0f, 10.0f          // Near and far planes
+        );
+    }
+
+    scene.camera->setProjectionMatrix(projectionMatrix);
 }
 
 void MyApp::displayCallback(GLFWwindow* win, double elapsed) { 
