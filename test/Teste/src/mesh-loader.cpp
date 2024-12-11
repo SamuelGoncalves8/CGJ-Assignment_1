@@ -280,11 +280,11 @@ glm::lookAt(glm::vec3(-5.0f, -5.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
 // Orthographic LeftRight(-2,2) BottomTop(-2,2) NearFar(1,10)
-const glm::mat4 ProjectionMatrix1 =
+glm::mat4 ProjectionMatrix1 =
 glm::ortho(-2.0f, 2.0f, -2.0f, 2.0f, 1.0f, 10.0f);
 
 // Perspective Fovy(30) Aspect(640/480) NearZ(1) FarZ(10)
-const glm::mat4 ProjectionMatrix2 =
+glm::mat4 ProjectionMatrix2 =
 glm::perspective(glm::radians(30.0f), 640.0f / 480.0f, 1.0f, 10.0f);
 
 void MyApp::createCameras() {
@@ -501,23 +501,23 @@ void MyApp::windowSizeCallback(GLFWwindow* win, int winx, int winy) {
 
     float aspectRatio = static_cast<float>(winx) / static_cast<float>(winy);
 
-    glm::mat4 projectionMatrix;
-    if (scene.orto) {
-        projectionMatrix = glm::ortho(
+    if (scene.orto == 0) {
+        ProjectionMatrix1 = glm::ortho(
             -2.0f * aspectRatio, 2.0f * aspectRatio, // Adjust left and right
             -2.0f, 2.0f,                             // Bottom and top remain constant
             1.0f, 10.0f                              // Near and far planes
         );
+        scene.camera->setProjectionMatrix(ProjectionMatrix1);
     }
     else {
-        projectionMatrix = glm::perspective(
+        ProjectionMatrix2 = glm::perspective(
             glm::radians(30.0f), // Field of view remains constant
             aspectRatio,         // Adjust aspect ratio
             1.0f, 10.0f          // Near and far planes
         );
+        scene.camera->setProjectionMatrix(ProjectionMatrix2);
     }
 
-    scene.camera->setProjectionMatrix(projectionMatrix);
 }
 
 void MyApp::displayCallback(GLFWwindow* win, double elapsed) { 
