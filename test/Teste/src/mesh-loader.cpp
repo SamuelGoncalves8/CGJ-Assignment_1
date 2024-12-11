@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////// MYAPP
 
 class SceneNode {
-private:
+public:
     const GLuint UBO_BP = 0;
     mgl::Mesh* mesh;
     std::vector<SceneNode*> children;
@@ -34,8 +34,6 @@ private:
     mgl::ShaderProgram* Shader = nullptr;
     SceneNode* parent = nullptr;
     GLint ModelMatrixId;
-
-public:
 
     glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f);
 
@@ -77,8 +75,17 @@ public:
         if (Shader != nullptr) {
             glm::mat4 MatrixCrab = TranslateMatrixCrab * RotateMatrixCrab * ScaleMatrix;
             glm::mat4 MatrixCube = TranslateMatrixCube * RotateMatrixCube * ScaleMatrix;
-            glm::mat4 worldMatrix = interpolateMatrix(MatrixCrab, MatrixCube, progress);
-            
+            glm::mat4 worldMatrix;
+
+            if (parent != nullptr) {
+                glm::mat4 parentMatrixCrab = parent->TranslateMatrixCrab * parent->RotateMatrixCrab * parent->ScaleMatrix;
+                glm::mat4 parentMatrixCube = parent->TranslateMatrixCube * parent->RotateMatrixCube * parent->ScaleMatrix;
+                worldMatrix = interpolateMatrix(parentMatrixCrab, parentMatrixCube, progress) * interpolateMatrix(MatrixCrab, MatrixCube, progress);
+            }
+            else {
+                worldMatrix = interpolateMatrix(MatrixCrab, MatrixCube, progress);
+            }
+
             Shader->bind();  // Bind the shader program
             glUniformMatrix4fv(ModelMatrixId, 1, GL_FALSE, glm::value_ptr(worldMatrix));
             glUniform3fv(Shader->Uniforms["meshColor"].index, 1, glm::value_ptr(color));
@@ -377,9 +384,9 @@ void MyApp::drawScene() {
     tangram.getChild(6)->rotateCube(45.0f, RotateAxisY);
 
     if (scene.left) {
-        progress -= 0.01f;
-    } else if (scene.right) {
         progress += 0.01f;
+    } else if (scene.right) {
+        progress -= 0.01f;
     }
 
     if (progress < 0.0f) {
@@ -387,7 +394,6 @@ void MyApp::drawScene() {
     } else if (progress > 1.0f) {
         progress = 1.0f;
     }
-
     scene.draw(progress);
 }
 
@@ -496,28 +502,13 @@ void MyApp::initCallback(GLFWwindow* win) {
     createCameras();
 }
 
-void MyApp::windowSizeCallback(GLFWwindow* win, int winx, int winy) {
-    glViewport(0, 0, winx, winy);
+void MyApp::windowSizeCallback(GLFWwindow* win, int width, int height) {
+    int size = std::min(width, height);
 
-    float aspectRatio = static_cast<float>(winx) / static_cast<float>(winy);
+    int x_offset = (width - size) / 2;
+    int y_offset = (height - size) / 2;
 
-    if (scene.orto == 0) {
-        ProjectionMatrix1 = glm::ortho(
-            -2.0f * aspectRatio, 2.0f * aspectRatio, // Adjust left and right
-            -2.0f, 2.0f,                             // Bottom and top remain constant
-            1.0f, 10.0f                              // Near and far planes
-        );
-        scene.camera->setProjectionMatrix(ProjectionMatrix1);
-    }
-    else {
-        ProjectionMatrix2 = glm::perspective(
-            glm::radians(30.0f), // Field of view remains constant
-            aspectRatio,         // Adjust aspect ratio
-            1.0f, 10.0f          // Near and far planes
-        );
-        scene.camera->setProjectionMatrix(ProjectionMatrix2);
-    }
-
+    glViewport(x_offset, y_offset, size, size);
 }
 
 void MyApp::displayCallback(GLFWwindow* win, double elapsed) { 
