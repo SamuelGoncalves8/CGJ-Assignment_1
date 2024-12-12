@@ -472,23 +472,24 @@ void MyApp::cursorCallback(GLFWwindow* win, double xpos, double ypos) {
 
         //Update Camera Position
         glm::vec3 CameraPos = glm::vec3(glm::inverse(ViewMatrix)[3]);
+        glm::vec3 upVector = glm::vec3(glm::inverse(ViewMatrix)[1]);
 
         glm::vec3 direction = glm::normalize(CameraPos - target);
 
         // Compute rotation quaternions
-        glm::quat horizontalQuat = glm::angleAxis(horizontalAngle, glm::vec3(0.0f, 1.0f, 0.0f)); // Around Y-axis
-        glm::vec3 rightAxis = glm::normalize(glm::cross(direction, glm::vec3(0.0f, 1.0f, 0.0f))); // Perpendicular to Y and direction
+        glm::quat horizontalQuat = glm::angleAxis(horizontalAngle, upVector); // Around Y-axis
+        glm::vec3 rightAxis = glm::normalize(glm::cross(direction, upVector)); // Perpendicular to Y and direction
         glm::quat verticalQuat = glm::angleAxis(verticalAngle, rightAxis); // Around the right axis
 
         // Combine the rotations
         glm::quat combinedQuat = horizontalQuat * verticalQuat;
 
         if (ViewMatrix == ViewMatrix1) {
-            scene.camera->setViewMatrix(glm::lookAt(CameraPos * combinedQuat, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+            scene.camera->setViewMatrix(glm::lookAt(CameraPos * combinedQuat, target, upVector * combinedQuat));
             ViewMatrix1 = scene.camera->getViewMatrix();
         }
         else {
-            scene.camera->setViewMatrix(glm::lookAt(CameraPos * combinedQuat, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+            scene.camera->setViewMatrix(glm::lookAt(CameraPos * combinedQuat, target, upVector * combinedQuat));
             ViewMatrix2 = scene.camera->getViewMatrix();
         }
     }
@@ -523,17 +524,18 @@ void MyApp::scrollCallback(GLFWwindow* win, double xpos, double ypos) {
 
     // Update the camera's position
     glm::vec3 CameraPos = glm::vec3(glm::inverse(ViewMatrix)[3]);
+    glm::vec3 upVector = glm::vec3(glm::inverse(ViewMatrix)[1]);
 
     glm::vec3 direction = glm::normalize(target - CameraPos);
 
     glm::vec3 newCameraPos = CameraPos + direction * zoomSpeed * static_cast<float>(ypos);
 
     if (ViewMatrix == ViewMatrix1) {
-        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, upVector));
         ViewMatrix1 = scene.camera->getViewMatrix();
     }
     else {
-        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f)));
+        scene.camera->setViewMatrix(glm::lookAt(newCameraPos, target, upVector));
         ViewMatrix2 = scene.camera->getViewMatrix();
     }
 }
@@ -545,7 +547,7 @@ int main(int argc, char* argv[]) {
     mgl::Engine& engine = mgl::Engine::getInstance();
     engine.setApp(new MyApp());
     engine.setOpenGL(4, 6);
-    engine.setWindow(800, 600, "Mesh Loader", 0, 1);
+    engine.setWindow(800, 600, "Crab Tangram Animation", 0, 1);
     engine.init();
     engine.run();
     exit(EXIT_SUCCESS);
